@@ -23,7 +23,13 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # npm ci is intentionally not used here: Vite 8's Rolldown bundler ships
+      # many platform-specific optional native-binding packages, and their
+      # nested optional deps (e.g. @rolldown/binding-wasm32-wasi's own
+      # @emnapi/runtime) don't always round-trip identically across a
+      # lockfile generated on a different OS. npm install tolerates that;
+      # npm ci's strict lockfile-match check does not.
+      - run: npm install
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
