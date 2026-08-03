@@ -54,11 +54,13 @@ function buildEquityCurve(rows: OhlcRow[], trades: Trade[]): EquityPoint[] {
     profitLossByExitDate.set(trade.exitDate, (profitLossByExitDate.get(trade.exitDate) ?? 0) + trade.profitLoss)
   }
 
+  const startingPrice = rows[0]?.close ?? 0
+
   let cumulative = 0
   return rows.map((row) => {
     const pl = profitLossByExitDate.get(row.date)
     if (pl !== undefined) cumulative += pl
-    return { date: row.date, cumulativeProfitLoss: cumulative }
+    return { date: row.date, cumulativeProfitLoss: cumulative, buyAndHoldProfitLoss: row.close - startingPrice }
   })
 }
 

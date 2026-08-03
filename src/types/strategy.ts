@@ -33,6 +33,7 @@ export interface OpenPosition {
 export interface EquityPoint {
   date: string
   cumulativeProfitLoss: number
+  buyAndHoldProfitLoss: number
 }
 
 export interface StrategyPerformance {

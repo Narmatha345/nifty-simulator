@@ -255,8 +255,15 @@ export default function SimulatorPage() {
                   <TradeHistoryTable trades={backtestResult.trades} />
                 </Card>
 
-                <Card title="Equity Curve (Cumulative P&L)">
-                  <EquityCurveChart equityCurve={backtestResult.equityCurve} isDark={isDark} />
+                <Card
+                  title="Equity Curve (Cumulative P&L)"
+                  description="Strategy P&L vs. simply buying and holding NIFTY from the first to the last loaded date."
+                >
+                  <EquityCurveChart
+                    equityCurve={backtestResult.equityCurve}
+                    strategyName={smaCrossoverStrategy.name}
+                    isDark={isDark}
+                  />
                 </Card>
               </>
             )}
