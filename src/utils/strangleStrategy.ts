@@ -5,14 +5,19 @@ import type {
   StrangleOpenPosition,
   StranglePerformance,
   StrangleSignal,
+  StrangleStrategyParams,
   StrangleTrade,
   VixRow,
 } from '../types/strangle'
-import { buildOptionChainIndex, findNearestOtmStrikes, getPremium } from './optionChain'
+import { buildOptionChainIndex, findOtmStrikesByPercent, getPremium } from './optionChain'
 import { computeRollingVixPercentile } from './vixPercentile'
 
-const ENTRY_PERCENTILE_THRESHOLD = 80
-const EXIT_PERCENTILE_THRESHOLD = 50
+export const DEFAULT_STRANGLE_PARAMS: StrangleStrategyParams = {
+  entryPercentile: 80,
+  exitPercentile: 50,
+  otmCallPct: 7,
+  otmPutPct: 5,
+}
 
 function daysBetween(startIso: string, endIso: string): number {
   const start = Date.parse(`${startIso}T00:00:00Z`)
@@ -22,16 +27,18 @@ function daysBetween(startIso: string, endIso: string): number {
 
 /**
  * India VIX rolling-percentile-driven short strangle: enters when the 30-day
- * VIX percentile is >= 80 (buy 1 NIFTY unit, sell nearest OTM CE + PE from
- * the option chain), exits when it drops below 50 (square everything off).
- * Only one position at a time. Real premiums only — a signal that fires on a
- * day without matching option-chain data is skipped, not faked, and is
- * re-checked the next day.
+ * VIX percentile is >= entryPercentile (buy 1 NIFTY unit, sell the CE/PE
+ * nearest the configured OTM% targets from the option chain), exits when it
+ * drops to/below exitPercentile (square everything off). Only one position
+ * at a time. Real premiums only — a signal that fires on a day without
+ * matching option-chain data is skipped, not faked, and is re-checked the
+ * next day.
  */
 export function runShortStrangleBacktest(
   ohlcRows: OhlcRow[],
   vixRows: VixRow[],
   optionChainRows: OptionChainRow[],
+  params: StrangleStrategyParams = DEFAULT_STRANGLE_PARAMS,
 ): StrangleBacktestResult {
   const niftyByDate = new Map(ohlcRows.map((row) => [row.date, row.close]))
   const optionIndex = buildOptionChainIndex(optionChainRows)
@@ -47,8 +54,8 @@ export function runShortStrangleBacktest(
     if (niftyClose === undefined) continue
 
     if (!openPosition) {
-      if (point.percentile < ENTRY_PERCENTILE_THRESHOLD) continue
-      const selection = findNearestOtmStrikes(optionIndex, point.date, niftyClose)
+      if (point.percentile < params.entryPercentile) continue
+      const selection = findOtmStrikesByPercent(optionIndex, point.date, niftyClose, params.otmCallPct, params.otmPutPct)
       if (!selection) continue
 
       openPosition = {
@@ -66,7 +73,7 @@ export function runShortStrangleBacktest(
       continue
     }
 
-    if (point.percentile >= EXIT_PERCENTILE_THRESHOLD) continue
+    if (point.percentile > params.exitPercentile) continue
     const ceBuyBackPremium = getPremium(optionIndex, point.date, openPosition.expiry, openPosition.ceStrike, 'CE')
     const peBuyBackPremium = getPremium(optionIndex, point.date, openPosition.expiry, openPosition.peStrike, 'PE')
     if (ceBuyBackPremium === null || peBuyBackPremium === null) continue

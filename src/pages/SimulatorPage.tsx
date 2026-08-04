@@ -26,8 +26,8 @@ import PerformanceMetrics from '../components/strategy/PerformanceMetrics'
 import TradeHistoryTable from '../components/strategy/TradeHistoryTable'
 import PriceWithSignalsChart from '../charts/strategy/PriceWithSignalsChart'
 import EquityCurveChart from '../charts/strategy/EquityCurveChart'
-import type { OptionChainRow, VixRow } from '../types/strangle'
-import { runShortStrangleBacktest } from '../utils/strangleStrategy'
+import type { OptionChainRow, StrangleStrategyParams, VixRow } from '../types/strangle'
+import { DEFAULT_STRANGLE_PARAMS, runShortStrangleBacktest } from '../utils/strangleStrategy'
 import StrangleDataSourcePanel from '../components/strangle/StrangleDataSourcePanel'
 import StrangleDashboard from '../components/strangle/StrangleDashboard'
 import StrangleTradeHistoryTable from '../components/strangle/StrangleTradeHistoryTable'
@@ -145,11 +145,12 @@ export default function SimulatorPage() {
   const [strategyType, setStrategyType] = useState<StrategyType>('moving-average')
   const [optionChainRows, setOptionChainRows] = useState<OptionChainRow[]>([])
   const [vixRows, setVixRows] = useState<VixRow[]>([])
+  const [strangleParams, setStrangleParams] = useState<StrangleStrategyParams>(DEFAULT_STRANGLE_PARAMS)
   const niftyDateRange = ohlcRows.length > 0 ? { start: ohlcRows[0].date, end: ohlcRows[ohlcRows.length - 1].date } : null
   const hasStrangleData = optionChainRows.length > 0 && vixRows.length > 0
   const strangleResult = useMemo(
-    () => runShortStrangleBacktest(ohlcRows, vixRows, optionChainRows),
-    [ohlcRows, vixRows, optionChainRows],
+    () => runShortStrangleBacktest(ohlcRows, vixRows, optionChainRows, strangleParams),
+    [ohlcRows, vixRows, optionChainRows, strangleParams],
   )
 
   return (
@@ -238,7 +239,7 @@ export default function SimulatorPage() {
               description={
                 strategyType === 'moving-average'
                   ? `${smaCrossoverStrategy.name}, backtested on the historical NIFTY data loaded above. Independent of the scenario simulator — this is a demonstration strategy for Version 1.`
-                  : 'India VIX rolling-percentile-driven Short Strangle, backtested on the historical NIFTY data loaded above using real option premiums from an uploaded Option Chain CSV.'
+                  : 'India VIX rolling-percentile-driven Short Strangle, backtested on the historical NIFTY data loaded above using real option premiums from the bundled Option Chain dataset.'
               }
             >
               <div className="mb-5 flex flex-wrap gap-2">
@@ -300,6 +301,7 @@ export default function SimulatorPage() {
                   niftyDateRange={niftyDateRange}
                   onOptionChainChange={setOptionChainRows}
                   onVixChange={setVixRows}
+                  onParamsChange={setStrangleParams}
                 />
               )}
             </Card>

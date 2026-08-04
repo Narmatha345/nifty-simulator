@@ -118,6 +118,21 @@ export function parseOptionChainCsvFile(file: File): Promise<OptionChainRow[]> {
   })
 }
 
+const BUNDLED_OPTION_CHAIN_URL = `${import.meta.env.BASE_URL}data/option-chain.json`
+
+/** Loads the Option Chain dataset bundled with the app — no upload needed. */
+export async function loadBundledOptionChain(): Promise<OptionChainRow[]> {
+  const response = await fetch(BUNDLED_OPTION_CHAIN_URL)
+  if (!response.ok) {
+    throw new Error(`Failed to load the bundled Option Chain dataset (HTTP ${response.status}).`)
+  }
+  const rows = (await response.json()) as OptionChainRow[]
+  if (rows.length === 0) {
+    throw new Error('The bundled Option Chain dataset has no rows.')
+  }
+  return rows
+}
+
 interface StrikeEntry {
   ce?: OptionChainRow
   pe?: OptionChainRow
@@ -169,12 +184,19 @@ export interface OtmStrikeSelection {
 }
 
 /**
- * Picks the nearest expiry on/after `date`, then the nearest OTM strike on
- * each side of `spot` (strike > spot for the call, strike < spot for the
- * put) among strikes that actually have that side's row. Returns null if no
- * expiry, or no valid OTM strike on either side, is available that day.
+ * Picks the nearest expiry on/after `date`, then the strike on each side
+ * closest to the OTM target price implied by the configured OTM% — CE target
+ * = spot * (1 + otmCallPct/100), PE target = spot * (1 - otmPutPct/100) —
+ * among strikes that actually have that side's row. Returns null if no
+ * expiry, or no valid strike on either side, is available that day.
  */
-export function findNearestOtmStrikes(index: OptionChainIndex, date: string, spot: number): OtmStrikeSelection | null {
+export function findOtmStrikesByPercent(
+  index: OptionChainIndex,
+  date: string,
+  spot: number,
+  otmCallPct: number,
+  otmPutPct: number,
+): OtmStrikeSelection | null {
   const expiries = index.expiriesByDate.get(date)
   if (!expiries || expiries.length === 0) return null
 
@@ -182,19 +204,32 @@ export function findNearestOtmStrikes(index: OptionChainIndex, date: string, spo
   const byStrike = index.byDateExpiryStrike.get(date)?.get(expiry)
   if (!byStrike) return null
 
+  const ceTarget = spot * (1 + otmCallPct / 100)
+  const peTarget = spot * (1 - otmPutPct / 100)
+
   let ceStrike: number | null = null
   let ceRow: OptionChainRow | null = null
+  let ceDiff = Infinity
   let peStrike: number | null = null
   let peRow: OptionChainRow | null = null
+  let peDiff = Infinity
 
   for (const [strike, entry] of byStrike) {
-    if (entry.ce && strike > spot && (ceStrike === null || strike < ceStrike)) {
-      ceStrike = strike
-      ceRow = entry.ce
+    if (entry.ce) {
+      const diff = Math.abs(strike - ceTarget)
+      if (diff < ceDiff) {
+        ceDiff = diff
+        ceStrike = strike
+        ceRow = entry.ce
+      }
     }
-    if (entry.pe && strike < spot && (peStrike === null || strike > peStrike)) {
-      peStrike = strike
-      peRow = entry.pe
+    if (entry.pe) {
+      const diff = Math.abs(strike - peTarget)
+      if (diff < peDiff) {
+        peDiff = diff
+        peStrike = strike
+        peRow = entry.pe
+      }
     }
   }
 

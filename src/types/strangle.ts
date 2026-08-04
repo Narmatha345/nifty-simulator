@@ -85,3 +85,14 @@ export interface StrangleBacktestResult {
   vixSeries: VixPercentilePoint[]
   signals: StrangleSignal[]
 }
+
+export interface StrangleStrategyParams {
+  /** Enter when the rolling VIX percentile is >= this value. */
+  entryPercentile: number
+  /** Exit when the rolling VIX percentile is <= this value. */
+  exitPercentile: number
+  /** OTM call strike target, as % above spot: strike ~= spot * (1 + otmCallPct/100). */
+  otmCallPct: number
+  /** OTM put strike target, as % below spot: strike ~= spot * (1 - otmPutPct/100). */
+  otmPutPct: number
+}
