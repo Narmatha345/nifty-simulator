@@ -26,8 +26,17 @@ import PerformanceMetrics from '../components/strategy/PerformanceMetrics'
 import TradeHistoryTable from '../components/strategy/TradeHistoryTable'
 import PriceWithSignalsChart from '../charts/strategy/PriceWithSignalsChart'
 import EquityCurveChart from '../charts/strategy/EquityCurveChart'
+import type { OptionChainRow, VixRow } from '../types/strangle'
+import { runShortStrangleBacktest } from '../utils/strangleStrategy'
+import StrangleDataSourcePanel from '../components/strangle/StrangleDataSourcePanel'
+import StrangleDashboard from '../components/strangle/StrangleDashboard'
+import StrangleTradeHistoryTable from '../components/strangle/StrangleTradeHistoryTable'
+import StranglePerformanceSummary from '../components/strangle/StranglePerformanceSummary'
+import StranglePriceChart from '../charts/strangle/StranglePriceChart'
 
 const DEFAULT_SMA_WINDOW = 30
+
+type StrategyType = 'moving-average' | 'short-strangle'
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'data', label: 'Data', icon: Database },
@@ -130,6 +139,19 @@ export default function SimulatorPage() {
   const backtestResult = useMemo(() => runBacktest(ohlcRows, signals), [ohlcRows, signals])
   const hasEnoughDataForStrategy = ohlcRows.length > smaWindow
 
+  // Short Strangle strategy — a second, independent strategy option. Uses the
+  // same loaded NIFTY data as the underlying, plus its own Option Chain CSV
+  // and India VIX data for premiums and entry/exit signals respectively.
+  const [strategyType, setStrategyType] = useState<StrategyType>('moving-average')
+  const [optionChainRows, setOptionChainRows] = useState<OptionChainRow[]>([])
+  const [vixRows, setVixRows] = useState<VixRow[]>([])
+  const niftyDateRange = ohlcRows.length > 0 ? { start: ohlcRows[0].date, end: ohlcRows[ohlcRows.length - 1].date } : null
+  const hasStrangleData = optionChainRows.length > 0 && vixRows.length > 0
+  const strangleResult = useMemo(
+    () => runShortStrangleBacktest(ohlcRows, vixRows, optionChainRows),
+    [ohlcRows, vixRows, optionChainRows],
+  )
+
   return (
     <div className="min-h-screen bg-slate-50 pb-24 dark:bg-slate-950">
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6">
@@ -213,35 +235,76 @@ export default function SimulatorPage() {
             <Card
               id="strategy"
               title="Trading Strategy Backtest"
-              description={`${smaCrossoverStrategy.name}, backtested on the historical NIFTY data loaded above. Independent of the scenario simulator — this is a demonstration strategy for Version 1.`}
+              description={
+                strategyType === 'moving-average'
+                  ? `${smaCrossoverStrategy.name}, backtested on the historical NIFTY data loaded above. Independent of the scenario simulator — this is a demonstration strategy for Version 1.`
+                  : 'India VIX rolling-percentile-driven Short Strangle, backtested on the historical NIFTY data loaded above using real option premiums from an uploaded Option Chain CSV.'
+              }
             >
-              <div className="mb-5 max-w-xs">
-                <InputControl
-                  id="sma-window"
-                  label="Moving Average Window (days)"
-                  value={smaWindowInput}
-                  onChange={setSmaWindowInput}
-                  min={2}
-                  max={200}
-                  step={1}
-                  helperText={`Currently ${smaWindow} day${smaWindow === 1 ? '' : 's'}`}
-                />
+              <div className="mb-5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStrategyType('moving-average')}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    strategyType === 'moving-average'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Moving Average Strategy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStrategyType('short-strangle')}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    strategyType === 'short-strangle'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Short Strangle Strategy
+                </button>
               </div>
-              {hasEnoughDataForStrategy ? (
-                <StrategySummary
-                  strategyName={smaCrossoverStrategy.name}
-                  totalTrades={backtestResult.trades.length}
-                  hasOpenPosition={backtestResult.openPosition !== null}
+
+              {strategyType === 'moving-average' && (
+                <>
+                  <div className="mb-5 max-w-xs">
+                    <InputControl
+                      id="sma-window"
+                      label="Moving Average Window (days)"
+                      value={smaWindowInput}
+                      onChange={setSmaWindowInput}
+                      min={2}
+                      max={200}
+                      step={1}
+                      helperText={`Currently ${smaWindow} day${smaWindow === 1 ? '' : 's'}`}
+                    />
+                  </div>
+                  {hasEnoughDataForStrategy ? (
+                    <StrategySummary
+                      strategyName={smaCrossoverStrategy.name}
+                      totalTrades={backtestResult.trades.length}
+                      hasOpenPosition={backtestResult.openPosition !== null}
+                    />
+                  ) : (
+                    <p className="text-sm text-amber-600 dark:text-amber-400">
+                      Need more than {smaWindow} trading days loaded to compute a {smaWindow}-day moving average — load a
+                      longer date range above or lower the window.
+                    </p>
+                  )}
+                </>
+              )}
+
+              {strategyType === 'short-strangle' && (
+                <StrangleDataSourcePanel
+                  niftyDateRange={niftyDateRange}
+                  onOptionChainChange={setOptionChainRows}
+                  onVixChange={setVixRows}
                 />
-              ) : (
-                <p className="text-sm text-amber-600 dark:text-amber-400">
-                  Need more than {smaWindow} trading days loaded to compute a {smaWindow}-day moving average — load a
-                  longer date range above or lower the window.
-                </p>
               )}
             </Card>
 
-            {hasEnoughDataForStrategy && (
+            {strategyType === 'moving-average' && hasEnoughDataForStrategy && (
               <>
                 <Card title="Performance Metrics">
                   <PerformanceMetrics performance={backtestResult.performance} />
@@ -264,6 +327,39 @@ export default function SimulatorPage() {
                     strategyName={smaCrossoverStrategy.name}
                     isDark={isDark}
                   />
+                </Card>
+              </>
+            )}
+
+            {strategyType === 'short-strangle' && hasStrangleData && (
+              <>
+                <Card title="Short Strangle Dashboard">
+                  <StrangleDashboard
+                    vixSeries={strangleResult.vixSeries}
+                    openPosition={strangleResult.openPosition}
+                    hasCompletedTrades={strangleResult.trades.length > 0}
+                  />
+                </Card>
+
+                <Card
+                  title="NIFTY Chart with Entry/Exit Markers"
+                  description="Shaded regions mark each trade's holding period."
+                >
+                  <StranglePriceChart
+                    rows={ohlcRows}
+                    trades={strangleResult.trades}
+                    openPosition={strangleResult.openPosition}
+                    signals={strangleResult.signals}
+                    isDark={isDark}
+                  />
+                </Card>
+
+                <Card title="Trade History">
+                  <StrangleTradeHistoryTable trades={strangleResult.trades} />
+                </Card>
+
+                <Card title="Performance Summary">
+                  <StranglePerformanceSummary performance={strangleResult.performance} />
                 </Card>
               </>
             )}
