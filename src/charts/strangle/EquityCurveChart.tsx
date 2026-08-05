@@ -1,5 +1,5 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { EquityPoint } from '../../types/strategy'
+import type { EquityPoint } from '../../types/strangle'
 import { getChartPalette } from '../colors'
 import { tooltipContentStyle } from '../ChartTooltipStyle'
 import { formatDate, formatNumber } from '../../utils/format'

@@ -18,25 +18,19 @@ import { computeProbabilityDistribution } from '../utils/probability'
 import { runSimulationAsync } from '../utils/simulator'
 import { computeSummaryStatistics } from '../utils/statistics'
 import InputControl from '../components/InputControl'
-import { computeSMA } from '../utils/movingAverage'
-import { createSmaCrossoverStrategy } from '../utils/strategy'
-import { runBacktest } from '../utils/backtest'
-import StrategySummary from '../components/strategy/StrategySummary'
-import PerformanceMetrics from '../components/strategy/PerformanceMetrics'
-import TradeHistoryTable from '../components/strategy/TradeHistoryTable'
-import PriceWithSignalsChart from '../charts/strategy/PriceWithSignalsChart'
-import EquityCurveChart from '../charts/strategy/EquityCurveChart'
-import type { OptionChainRow, StrangleStrategyParams, VixRow } from '../types/strangle'
+import type { OptionChainRow, SimulationSource, StrangleStrategyParams, VixRow } from '../types/strangle'
 import { DEFAULT_STRANGLE_PARAMS, runShortStrangleBacktest } from '../utils/strangleStrategy'
+import { generateRandomNiftyPath } from '../utils/randomNiftyGenerator'
+import { computeBuyAndHoldComparison } from '../utils/strangleComparison'
 import StrangleDataSourcePanel from '../components/strangle/StrangleDataSourcePanel'
 import StrangleDashboard from '../components/strangle/StrangleDashboard'
 import StrangleTradeHistoryTable from '../components/strangle/StrangleTradeHistoryTable'
 import StranglePerformanceSummary from '../components/strangle/StranglePerformanceSummary'
 import StranglePriceChart from '../charts/strangle/StranglePriceChart'
-
-const DEFAULT_SMA_WINDOW = 30
-
-type StrategyType = 'moving-average' | 'short-strangle'
+import SimulationSourceSelector from '../components/strangle/SimulationSourceSelector'
+import StrangleComparisonSummary from '../components/strangle/StrangleComparisonSummary'
+import StrangleComparisonTable from '../components/strangle/StrangleComparisonTable'
+import EquityCurveChart from '../charts/strangle/EquityCurveChart'
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'data', label: 'Data', icon: Database },
@@ -129,28 +123,36 @@ export default function SimulatorPage() {
     [simulationResult],
   )
 
-  // Trading strategy backtest — independent of the scenario simulator above;
-  // runs directly on the loaded historical OHLC data.
-  const [smaWindowInput, setSmaWindowInput] = useState<number | ''>(DEFAULT_SMA_WINDOW)
-  const smaWindow = typeof smaWindowInput === 'number' && smaWindowInput >= 2 ? Math.round(smaWindowInput) : DEFAULT_SMA_WINDOW
-  const smaCrossoverStrategy = useMemo(() => createSmaCrossoverStrategy(smaWindow), [smaWindow])
-  const sma = useMemo(() => computeSMA(ohlcRows.map((row) => row.close), smaWindow), [ohlcRows, smaWindow])
-  const signals = useMemo(() => smaCrossoverStrategy.generateSignals(ohlcRows), [smaCrossoverStrategy, ohlcRows])
-  const backtestResult = useMemo(() => runBacktest(ohlcRows, signals), [ohlcRows, signals])
-  const hasEnoughDataForStrategy = ohlcRows.length > smaWindow
-
-  // Short Strangle strategy — a second, independent strategy option. Uses the
-  // same loaded NIFTY data as the underlying, plus its own Option Chain CSV
-  // and India VIX data for premiums and entry/exit signals respectively.
-  const [strategyType, setStrategyType] = useState<StrategyType>('moving-average')
+  // Short Strangle strategy — the app's only trading strategy. Uses the
+  // loaded NIFTY data (historical or randomly generated) as the underlying,
+  // plus its own Option Chain CSV and India VIX data for premiums and
+  // entry/exit signals respectively.
   const [optionChainRows, setOptionChainRows] = useState<OptionChainRow[]>([])
   const [vixRows, setVixRows] = useState<VixRow[]>([])
   const [strangleParams, setStrangleParams] = useState<StrangleStrategyParams>(DEFAULT_STRANGLE_PARAMS)
   const niftyDateRange = ohlcRows.length > 0 ? { start: ohlcRows[0].date, end: ohlcRows[ohlcRows.length - 1].date } : null
   const hasStrangleData = optionChainRows.length > 0 && vixRows.length > 0
+
+  // Simulation Source — lets the same Short Strangle engine run on either
+  // the loaded historical NIFTY data or a synthetic random path generated
+  // from that same data's historical return distribution. The random path
+  // reuses the same calendar dates, so VIX/Option Chain date lookups stay
+  // valid without the strategy engine needing to know which source it's on.
+  const [simulationSource, setSimulationSource] = useState<SimulationSource>('historical')
+  const [randomPathSeed, setRandomPathSeed] = useState(0)
+  const randomNiftyRows = useMemo(
+    () => (ohlcRows.length > 0 ? generateRandomNiftyPath(ohlcRows) : []),
+    [ohlcRows, randomPathSeed],
+  )
+  const strangleOhlcRows = simulationSource === 'historical' ? ohlcRows : randomNiftyRows
+
   const strangleResult = useMemo(
-    () => runShortStrangleBacktest(ohlcRows, vixRows, optionChainRows, strangleParams),
-    [ohlcRows, vixRows, optionChainRows, strangleParams],
+    () => runShortStrangleBacktest(strangleOhlcRows, vixRows, optionChainRows, strangleParams),
+    [strangleOhlcRows, vixRows, optionChainRows, strangleParams],
+  )
+  const comparison = useMemo(
+    () => computeBuyAndHoldComparison(strangleOhlcRows, strangleResult.trades),
+    [strangleOhlcRows, strangleResult.trades],
   )
 
   return (
@@ -235,111 +237,33 @@ export default function SimulatorPage() {
           <>
             <Card
               id="strategy"
-              title="Trading Strategy Backtest"
-              description={
-                strategyType === 'moving-average'
-                  ? `${smaCrossoverStrategy.name}, backtested on the historical NIFTY data loaded above. Independent of the scenario simulator — this is a demonstration strategy for Version 1.`
-                  : 'India VIX rolling-percentile-driven Short Strangle, backtested on the historical NIFTY data loaded above using real option premiums from the bundled Option Chain dataset.'
-              }
+              title="Short Strangle Strategy"
+              description="India VIX rolling-percentile-driven Short Strangle, backtested using real option premiums from the bundled Option Chain dataset — on either the historical NIFTY data loaded above or a randomly generated NIFTY path."
             >
-              <div className="mb-5 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStrategyType('moving-average')}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                    strategyType === 'moving-average'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Moving Average Strategy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStrategyType('short-strangle')}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                    strategyType === 'short-strangle'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Short Strangle Strategy
-                </button>
+              <div className="mb-5">
+                <SimulationSourceSelector
+                  value={simulationSource}
+                  onChange={setSimulationSource}
+                  onRegenerate={() => setRandomPathSeed((s) => s + 1)}
+                />
               </div>
 
-              {strategyType === 'moving-average' && (
-                <>
-                  <div className="mb-5 max-w-xs">
-                    <InputControl
-                      id="sma-window"
-                      label="Moving Average Window (days)"
-                      value={smaWindowInput}
-                      onChange={setSmaWindowInput}
-                      min={2}
-                      max={200}
-                      step={1}
-                      helperText={`Currently ${smaWindow} day${smaWindow === 1 ? '' : 's'}`}
-                    />
-                  </div>
-                  {hasEnoughDataForStrategy ? (
-                    <StrategySummary
-                      strategyName={smaCrossoverStrategy.name}
-                      totalTrades={backtestResult.trades.length}
-                      hasOpenPosition={backtestResult.openPosition !== null}
-                    />
-                  ) : (
-                    <p className="text-sm text-amber-600 dark:text-amber-400">
-                      Need more than {smaWindow} trading days loaded to compute a {smaWindow}-day moving average — load a
-                      longer date range above or lower the window.
-                    </p>
-                  )}
-                </>
-              )}
-
-              {strategyType === 'short-strangle' && (
-                <StrangleDataSourcePanel
-                  niftyDateRange={niftyDateRange}
-                  onOptionChainChange={setOptionChainRows}
-                  onVixChange={setVixRows}
-                  onParamsChange={setStrangleParams}
-                />
-              )}
+              <StrangleDataSourcePanel
+                niftyDateRange={niftyDateRange}
+                onOptionChainChange={setOptionChainRows}
+                onVixChange={setVixRows}
+                onParamsChange={setStrangleParams}
+              />
             </Card>
 
-            {strategyType === 'moving-average' && hasEnoughDataForStrategy && (
-              <>
-                <Card title="Performance Metrics">
-                  <PerformanceMetrics performance={backtestResult.performance} />
-                </Card>
-
-                <Card title="NIFTY Chart with SMA + Buy/Sell Signals">
-                  <PriceWithSignalsChart rows={ohlcRows} sma={sma} signals={signals} isDark={isDark} />
-                </Card>
-
-                <Card title="Trade History">
-                  <TradeHistoryTable trades={backtestResult.trades} />
-                </Card>
-
-                <Card
-                  title="Equity Curve (Cumulative P&L)"
-                  description="Strategy P&L vs. simply buying and holding NIFTY from the first to the last loaded date."
-                >
-                  <EquityCurveChart
-                    equityCurve={backtestResult.equityCurve}
-                    strategyName={smaCrossoverStrategy.name}
-                    isDark={isDark}
-                  />
-                </Card>
-              </>
-            )}
-
-            {strategyType === 'short-strangle' && hasStrangleData && (
+            {hasStrangleData && (
               <>
                 <Card title="Short Strangle Dashboard">
                   <StrangleDashboard
                     vixSeries={strangleResult.vixSeries}
                     openPosition={strangleResult.openPosition}
                     hasCompletedTrades={strangleResult.trades.length > 0}
+                    simulationSource={simulationSource}
                   />
                 </Card>
 
@@ -348,7 +272,7 @@ export default function SimulatorPage() {
                   description="Shaded regions mark each trade's holding period."
                 >
                   <StranglePriceChart
-                    rows={ohlcRows}
+                    rows={strangleOhlcRows}
                     trades={strangleResult.trades}
                     openPosition={strangleResult.openPosition}
                     signals={strangleResult.signals}
@@ -357,11 +281,36 @@ export default function SimulatorPage() {
                 </Card>
 
                 <Card title="Trade History">
-                  <StrangleTradeHistoryTable trades={strangleResult.trades} />
+                  <StrangleTradeHistoryTable trades={strangleResult.trades} simulationSource={simulationSource} />
                 </Card>
 
                 <Card title="Performance Summary">
                   <StranglePerformanceSummary performance={strangleResult.performance} />
+                </Card>
+
+                <Card
+                  title="Buy & Hold vs Short Strangle"
+                  description="For every trade, Buy & Hold profit is Exit NIFTY Price minus Entry NIFTY Price over the same window the strategy was in the market."
+                >
+                  {comparison ? (
+                    <div className="space-y-5">
+                      <StrangleComparisonSummary comparison={comparison} />
+                      <StrangleComparisonTable comparison={comparison} />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No completed trades yet to compare against Buy & Hold.</p>
+                  )}
+                </Card>
+
+                <Card
+                  title="Equity Curve Comparison"
+                  description="Short Strangle cumulative P&L vs. Buy & Hold cumulative P&L, both accrued at each trade's exit date."
+                >
+                  {comparison ? (
+                    <EquityCurveChart equityCurve={comparison.equityCurve} strategyName="Short Strangle" isDark={isDark} />
+                  ) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No completed trades yet to chart.</p>
+                  )}
                 </Card>
               </>
             )}

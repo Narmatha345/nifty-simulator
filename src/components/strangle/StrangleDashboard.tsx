@@ -1,10 +1,11 @@
-import type { StrangleOpenPosition, VixPercentilePoint } from '../../types/strangle'
+import type { SimulationSource, StrangleOpenPosition, VixPercentilePoint } from '../../types/strangle'
 import { formatNumber } from '../../utils/format'
 
 interface Props {
   vixSeries: VixPercentilePoint[]
   openPosition: StrangleOpenPosition | null
   hasCompletedTrades: boolean
+  simulationSource: SimulationSource
 }
 
 interface StatCard {
@@ -13,7 +14,7 @@ interface StatCard {
   accent?: 'positive' | 'negative' | 'neutral'
 }
 
-export default function StrangleDashboard({ vixSeries, openPosition, hasCompletedTrades }: Props) {
+export default function StrangleDashboard({ vixSeries, openPosition, hasCompletedTrades, simulationSource }: Props) {
   const latest = vixSeries.length > 0 ? vixSeries[vixSeries.length - 1] : null
   const percentile = latest?.percentile ?? null
 
@@ -45,6 +46,7 @@ export default function StrangleDashboard({ vixSeries, openPosition, hasComplete
     { label: 'Exit Status', value: exitStatus, accent: exitSignalActive ? 'negative' : 'neutral' },
     { label: 'Current Position', value: openPosition ? 'Open' : 'Closed', accent: openPosition ? 'positive' : 'neutral' },
     { label: 'Trade Status', value: tradeStatus, accent: tradeStatus === 'Trade Active' ? 'positive' : 'neutral' },
+    { label: 'Simulation Source', value: simulationSource === 'historical' ? 'Historical' : 'Random Generated' },
   ]
 
   const accentClass: Record<NonNullable<StatCard['accent']>, string> = {

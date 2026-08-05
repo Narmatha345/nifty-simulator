@@ -96,3 +96,25 @@ export interface StrangleStrategyParams {
   /** OTM put strike target, as % below spot: strike ~= spot * (1 - otmPutPct/100). */
   otmPutPct: number
 }
+
+export type SimulationSource = 'historical' | 'random'
+
+export interface EquityPoint {
+  date: string
+  cumulativeProfitLoss: number
+  buyAndHoldProfitLoss: number
+}
+
+export interface BuyAndHoldComparison {
+  entryDate: string
+  exitDate: string
+  entryPrice: number
+  exitPrice: number
+  buyHoldProfit: number
+  buyHoldReturnPct: number
+  strategyProfit: number
+  strategyReturnPct: number
+  difference: number
+  outperformed: boolean
+  equityCurve: EquityPoint[]
+}

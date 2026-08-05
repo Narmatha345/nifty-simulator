@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { StrangleTrade } from '../../types/strangle'
+import type { SimulationSource, StrangleTrade } from '../../types/strangle'
 import { formatDate, formatNumber } from '../../utils/format'
 
 const PAGE_SIZE = 15
 
 interface Props {
   trades: StrangleTrade[]
+  simulationSource: SimulationSource
 }
 
 const COLUMNS: { key: keyof StrangleTrade | 'optionsProfitLoss'; label: string; align?: 'right' }[] = [
@@ -37,7 +38,8 @@ function cellValue(trade: StrangleTrade, key: (typeof COLUMNS)[number]['key']): 
   return formatNumber(trade[key] as number, 2)
 }
 
-export default function StrangleTradeHistoryTable({ trades }: Props) {
+export default function StrangleTradeHistoryTable({ trades, simulationSource }: Props) {
+  const simulationTypeLabel = simulationSource === 'historical' ? 'Historical' : 'Random'
   const [page, setPage] = useState(0)
   const pageCount = Math.max(1, Math.ceil(trades.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount - 1)
@@ -62,6 +64,9 @@ export default function StrangleTradeHistoryTable({ trades }: Props) {
                   {col.label}
                 </th>
               ))}
+              <th className="whitespace-nowrap px-3 py-2 text-left font-semibold text-slate-600 dark:text-slate-300">
+                Simulation Type
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -84,6 +89,7 @@ export default function StrangleTradeHistoryTable({ trades }: Props) {
                     </td>
                   )
                 })}
+                <td className="whitespace-nowrap px-3 py-1.5 text-left text-slate-600 dark:text-slate-300">{simulationTypeLabel}</td>
               </tr>
             ))}
           </tbody>
