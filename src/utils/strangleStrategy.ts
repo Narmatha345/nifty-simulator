@@ -117,7 +117,8 @@ export function runShortStrangleBacktest(
   }
 }
 
-function computeStranglePerformance(trades: StrangleTrade[]): StranglePerformance {
+/** Exported so strangleComparison.ts can reuse it to compute the same performance shape for Buy & Hold's own pseudo-trades (Requirement 1) — the aggregation math (win rate, avg holding days, max profit/loss) is identical regardless of which numbers feed it. */
+export function computeStranglePerformance(trades: StrangleTrade[]): StranglePerformance {
   const totalTrades = trades.length
   const winningTrades = trades.filter((t) => t.totalProfitLoss > 0)
   const losingTrades = trades.filter((t) => t.totalProfitLoss < 0)

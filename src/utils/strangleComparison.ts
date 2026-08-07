@@ -1,5 +1,18 @@
 import type { OhlcRow } from '../types'
 import type { BuyAndHoldComparison, EquityPoint, StrangleTrade } from '../types/strangle'
+import { computeStranglePerformance } from './strangleStrategy'
+
+/**
+ * Buy & Hold's own StranglePerformance — one pseudo-trade per Short Strangle
+ * trade window, with `totalProfitLoss` swapped for that window's NIFTY-only
+ * P&L (already computed per trade as `niftyProfitLoss`). Reuses
+ * strangleStrategy.ts's own aggregation (win rate, avg holding days, max
+ * profit/loss trade) so Buy & Hold and the strategy are scored identically.
+ */
+function computeBuyAndHoldPerformance(trades: StrangleTrade[]) {
+  const buyAndHoldTrades = trades.map((trade) => ({ ...trade, totalProfitLoss: trade.niftyProfitLoss }))
+  return computeStranglePerformance(buyAndHoldTrades)
+}
 
 function buildStrangleEquityCurve(rows: OhlcRow[], trades: StrangleTrade[]): EquityPoint[] {
   const strategyPlByExit = new Map<string, number>()
@@ -48,5 +61,6 @@ export function computeBuyAndHoldComparison(rows: OhlcRow[], trades: StrangleTra
     difference: strategyProfit - buyHoldProfit,
     outperformed: strategyProfit > buyHoldProfit,
     equityCurve: buildStrangleEquityCurve(rows, trades),
+    buyHoldPerformance: computeBuyAndHoldPerformance(trades),
   }
 }

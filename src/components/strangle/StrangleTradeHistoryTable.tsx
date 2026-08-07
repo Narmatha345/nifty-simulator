@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { SimulationSource, StrangleTrade } from '../../types/strangle'
-import { formatDate, formatNumber } from '../../utils/format'
+import { formatDate, formatNumber, formatSimulationSource } from '../../utils/format'
 
 const PAGE_SIZE = 15
 
@@ -39,7 +39,7 @@ function cellValue(trade: StrangleTrade, key: (typeof COLUMNS)[number]['key']): 
 }
 
 export default function StrangleTradeHistoryTable({ trades, simulationSource }: Props) {
-  const simulationTypeLabel = simulationSource === 'historical' ? 'Historical' : 'Random'
+  const simulationTypeLabel = formatSimulationSource(simulationSource)
   const [page, setPage] = useState(0)
   const pageCount = Math.max(1, Math.ceil(trades.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount - 1)

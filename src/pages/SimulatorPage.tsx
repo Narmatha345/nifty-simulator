@@ -21,16 +21,24 @@ import InputControl from '../components/InputControl'
 import type { OptionChainRow, SimulationSource, StrangleStrategyParams, VixRow } from '../types/strangle'
 import { DEFAULT_STRANGLE_PARAMS, runShortStrangleBacktest } from '../utils/strangleStrategy'
 import { generateRandomNiftyPath } from '../utils/randomNiftyGenerator'
+import { generateSyntheticMarket } from '../utils/syntheticMarketSimulation'
+import { computeRollingVixPercentile } from '../utils/vixPercentile'
+import { buildHistoricalScenarioSummary, runSyntheticScenarioBatch } from '../utils/strangleBatchSimulation'
 import { computeBuyAndHoldComparison } from '../utils/strangleComparison'
 import StrangleDataSourcePanel from '../components/strangle/StrangleDataSourcePanel'
 import StrangleDashboard from '../components/strangle/StrangleDashboard'
 import StrangleTradeHistoryTable from '../components/strangle/StrangleTradeHistoryTable'
 import StranglePerformanceSummary from '../components/strangle/StranglePerformanceSummary'
 import StranglePriceChart from '../charts/strangle/StranglePriceChart'
+import VixPathChart from '../charts/strangle/VixPathChart'
+import OptionPremiumChart from '../charts/strangle/OptionPremiumChart'
 import SimulationSourceSelector from '../components/strangle/SimulationSourceSelector'
 import StrangleComparisonSummary from '../components/strangle/StrangleComparisonSummary'
 import StrangleComparisonTable from '../components/strangle/StrangleComparisonTable'
 import EquityCurveChart from '../charts/strangle/EquityCurveChart'
+import StrangleSyntheticBatchPanel from '../components/strangle/StrangleSyntheticBatchPanel'
+import StrangleSimulationPanel from '../components/strangle/StrangleSimulationPanel'
+import StrangleModeComparisonTable from '../components/strangle/StrangleModeComparisonTable'
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'data', label: 'Data', icon: Database },
@@ -40,6 +48,14 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'statistics', label: 'Stats', icon: Sigma },
   { id: 'strategy', label: 'Strategy', icon: Repeat },
 ]
+
+// Stable empty-array fallbacks for when Synthetic Simulation mode has no
+// generated dataset yet — reused (not `?? []` inline) so strangleOhlcRows /
+// strangleVixRows / strangleOptionChainRows keep a stable reference across
+// renders and don't defeat the useMemo below them.
+const EMPTY_OHLC_ROWS: OhlcRow[] = []
+const EMPTY_VIX_ROWS: VixRow[] = []
+const EMPTY_OPTION_CHAIN_ROWS: OptionChainRow[] = []
 
 function useIsDark() {
   const [isDark, setIsDark] = useState(() => {
@@ -131,28 +147,92 @@ export default function SimulatorPage() {
   const [vixRows, setVixRows] = useState<VixRow[]>([])
   const [strangleParams, setStrangleParams] = useState<StrangleStrategyParams>(DEFAULT_STRANGLE_PARAMS)
   const niftyDateRange = ohlcRows.length > 0 ? { start: ohlcRows[0].date, end: ohlcRows[ohlcRows.length - 1].date } : null
-  const hasStrangleData = optionChainRows.length > 0 && vixRows.length > 0
 
-  // Simulation Source — lets the same Short Strangle engine run on either
-  // the loaded historical NIFTY data or a synthetic random path generated
-  // from that same data's historical return distribution. The random path
-  // reuses the same calendar dates, so VIX/Option Chain date lookups stay
-  // valid without the strategy engine needing to know which source it's on.
+  // Simulation Source — lets the same Short Strangle engine run on the
+  // loaded historical NIFTY data, a synthetic random NIFTY path generated
+  // from that same data's historical return distribution (historical VIX +
+  // Option Chain still apply), or a fully synthetic market. The synthetic
+  // market is its own standalone module (syntheticMarketSimulation.ts): a
+  // "Run Simulation" click generates and stores one complete dataset (Random
+  // NIFTY + Random VIX + Black-Scholes option chain), and the strategy below
+  // only ever reads that stored dataset — it never generates data itself.
   const [simulationSource, setSimulationSource] = useState<SimulationSource>('historical')
   const [randomPathSeed, setRandomPathSeed] = useState(0)
   const randomNiftyRows = useMemo(
     () => (ohlcRows.length > 0 ? generateRandomNiftyPath(ohlcRows) : []),
     [ohlcRows, randomPathSeed],
   )
-  const strangleOhlcRows = simulationSource === 'historical' ? ohlcRows : randomNiftyRows
+
+  const [syntheticDataset, setSyntheticDataset] = useState<ReturnType<typeof generateSyntheticMarket> | null>(null)
+  const handleRunSyntheticMarket = useCallback(() => {
+    if (ohlcRows.length === 0 || vixRows.length === 0) return
+    setSyntheticDataset(generateSyntheticMarket(ohlcRows, vixRows))
+  }, [ohlcRows, vixRows])
+
+  const strangleOhlcRows =
+    simulationSource === 'historical' ? ohlcRows : simulationSource === 'random' ? randomNiftyRows : (syntheticDataset?.niftyRows ?? EMPTY_OHLC_ROWS)
+  const strangleVixRows = simulationSource === 'synthetic' ? (syntheticDataset?.vixRows ?? EMPTY_VIX_ROWS) : vixRows
+  const strangleOptionChainRows = simulationSource === 'synthetic' ? (syntheticDataset?.optionChainRows ?? EMPTY_OPTION_CHAIN_ROWS) : optionChainRows
+  const hasStrangleData = simulationSource === 'synthetic' ? syntheticDataset !== null : optionChainRows.length > 0 && vixRows.length > 0
 
   const strangleResult = useMemo(
-    () => runShortStrangleBacktest(strangleOhlcRows, vixRows, optionChainRows, strangleParams),
-    [strangleOhlcRows, vixRows, optionChainRows, strangleParams],
+    () => runShortStrangleBacktest(strangleOhlcRows, strangleVixRows, strangleOptionChainRows, strangleParams),
+    [strangleOhlcRows, strangleVixRows, strangleOptionChainRows, strangleParams],
   )
   const comparison = useMemo(
     () => computeBuyAndHoldComparison(strangleOhlcRows, strangleResult.trades),
     [strangleOhlcRows, strangleResult.trades],
+  )
+
+  // Historical and Synthetic backtests, each computed independently of the
+  // `simulationSource` toggle above, so the Historical vs Synthetic
+  // comparison section and the Strategy Validation batch can always show
+  // both sides regardless of which one is currently selected for the main
+  // dashboard/charts.
+  const historicalStrangleResult = useMemo(
+    () =>
+      ohlcRows.length > 0 && vixRows.length > 0 && optionChainRows.length > 0
+        ? runShortStrangleBacktest(ohlcRows, vixRows, optionChainRows, strangleParams)
+        : null,
+    [ohlcRows, vixRows, optionChainRows, strangleParams],
+  )
+  const historicalComparison = useMemo(
+    () => (historicalStrangleResult ? computeBuyAndHoldComparison(ohlcRows, historicalStrangleResult.trades) : null),
+    [ohlcRows, historicalStrangleResult],
+  )
+  const historicalScenarioSummary = historicalStrangleResult
+    ? buildHistoricalScenarioSummary(historicalStrangleResult.performance, historicalComparison?.strategyReturnPct ?? 0)
+    : null
+
+  const syntheticStrangleResult = useMemo(
+    () =>
+      syntheticDataset
+        ? runShortStrangleBacktest(syntheticDataset.niftyRows, syntheticDataset.vixRows, syntheticDataset.optionChainRows, strangleParams)
+        : null,
+    [syntheticDataset, strangleParams],
+  )
+  const syntheticComparison = useMemo(
+    () => (syntheticDataset && syntheticStrangleResult ? computeBuyAndHoldComparison(syntheticDataset.niftyRows, syntheticStrangleResult.trades) : null),
+    [syntheticDataset, syntheticStrangleResult],
+  )
+
+  // Pure visualization of the generated dataset itself (Requirement 5) —
+  // independent of whether the strategy found any trades on it, so the
+  // Simulated NIFTY / India VIX / Option Premium charts always reflect
+  // exactly what "Run Market Simulation" produced.
+  const syntheticVixSeries = useMemo(
+    () => (syntheticDataset ? computeRollingVixPercentile(syntheticDataset.vixRows) : []),
+    [syntheticDataset],
+  )
+
+  const handleRunSyntheticBatch = useCallback(
+    (runCount: number) =>
+      new Promise<ReturnType<typeof runSyntheticScenarioBatch>>((resolve) => {
+        // Yields to the browser once before the batch's synchronous compute,
+        // so the "Running…" state actually paints first.
+        setTimeout(() => resolve(runSyntheticScenarioBatch(ohlcRows, vixRows, strangleParams, runCount)), 0)
+      }),
+    [ohlcRows, vixRows, strangleParams],
   )
 
   return (
@@ -238,7 +318,7 @@ export default function SimulatorPage() {
             <Card
               id="strategy"
               title="Short Strangle Strategy"
-              description="India VIX rolling-percentile-driven Short Strangle, backtested using real option premiums from the bundled Option Chain dataset — on either the historical NIFTY data loaded above or a randomly generated NIFTY path."
+              description="India VIX rolling-percentile-driven Short Strangle. Historical Backtest uses real option premiums from the bundled Option Chain dataset; Synthetic Simulation prices its own options with Black-Scholes off a simulated NIFTY + India VIX market."
             >
               <div className="mb-5">
                 <SimulationSourceSelector
@@ -255,6 +335,37 @@ export default function SimulatorPage() {
                 onParamsChange={setStrangleParams}
               />
             </Card>
+
+            {vixRows.length > 0 && (
+              <Card
+                title="Synthetic Market Simulation"
+                description="Generates one complete synthetic market — Random NIFTY path, Random India VIX path, and a Black-Scholes option chain priced off both — as a standalone step before the strategy runs. Synthetic Simulation mode above always runs on whatever dataset is generated here."
+              >
+                <StrangleSimulationPanel dataset={syntheticDataset} onRunSimulation={handleRunSyntheticMarket} />
+              </Card>
+            )}
+
+            {syntheticDataset && (
+              <Card
+                title="Simulated Market Charts"
+                description="Pure visualization of the generated dataset itself — no strategy entry/exit markers — for validating the simulation before (or regardless of) running the strategy on it."
+              >
+                <div className="space-y-8">
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Simulated NIFTY Path</p>
+                    <StranglePriceChart rows={syntheticDataset.niftyRows} trades={[]} openPosition={null} signals={[]} isDark={isDark} />
+                  </div>
+                  <div className="space-y-2 border-t border-slate-100 pt-6 dark:border-slate-800">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Simulated India VIX Path</p>
+                    <VixPathChart vixSeries={syntheticVixSeries} signals={[]} isDark={isDark} />
+                  </div>
+                  <div className="space-y-2 border-t border-slate-100 pt-6 dark:border-slate-800">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Synthetic Option Prices</p>
+                    <OptionPremiumChart optionChainRows={syntheticDataset.optionChainRows} isDark={isDark} />
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {hasStrangleData && (
               <>
@@ -280,6 +391,13 @@ export default function SimulatorPage() {
                   />
                 </Card>
 
+                <Card
+                  title="India VIX Chart with Entry/Exit Markers"
+                  description="The same VIX series the strategy's entry/exit percentile signals are computed from — historical or simulated depending on the source selected above."
+                >
+                  <VixPathChart vixSeries={strangleResult.vixSeries} signals={strangleResult.signals} isDark={isDark} />
+                </Card>
+
                 <Card title="Trade History">
                   <StrangleTradeHistoryTable trades={strangleResult.trades} simulationSource={simulationSource} />
                 </Card>
@@ -295,7 +413,7 @@ export default function SimulatorPage() {
                   {comparison ? (
                     <div className="space-y-5">
                       <StrangleComparisonSummary comparison={comparison} />
-                      <StrangleComparisonTable comparison={comparison} />
+                      <StrangleComparisonTable comparison={comparison} strategyPerformance={strangleResult.performance} />
                     </div>
                   ) : (
                     <p className="text-sm text-slate-500 dark:text-slate-400">No completed trades yet to compare against Buy & Hold.</p>
@@ -313,6 +431,69 @@ export default function SimulatorPage() {
                   )}
                 </Card>
               </>
+            )}
+
+            {(historicalStrangleResult || syntheticStrangleResult) && (
+              <Card
+                title="Historical vs Synthetic Performance"
+                description="The current Historical Backtest (real Option Chain data) next to the current Synthetic Market Simulation dataset generated above — run each mode's data source to fill in its column."
+              >
+                <StrangleModeComparisonTable
+                  historical={
+                    historicalStrangleResult
+                      ? { performance: historicalStrangleResult.performance, strategyReturnPct: historicalComparison?.strategyReturnPct ?? 0 }
+                      : null
+                  }
+                  synthetic={
+                    syntheticStrangleResult
+                      ? { performance: syntheticStrangleResult.performance, strategyReturnPct: syntheticComparison?.strategyReturnPct ?? 0 }
+                      : null
+                  }
+                />
+              </Card>
+            )}
+
+            {(historicalComparison || syntheticComparison) && (
+              <Card
+                title="Buy & Hold vs Short Strangle — Historical vs Synthetic"
+                description="For every trade, Buy & Hold profit is Exit NIFTY Price minus Entry NIFTY Price over the same window the strategy was in the market — shown for both data sources independently of which one is selected above."
+              >
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Historical</p>
+                    {historicalComparison && historicalStrangleResult ? (
+                      <div className="space-y-5">
+                        <StrangleComparisonSummary comparison={historicalComparison} />
+                        <StrangleComparisonTable comparison={historicalComparison} strategyPerformance={historicalStrangleResult.performance} />
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">No completed Historical trades yet to compare.</p>
+                    )}
+                  </div>
+                  <div className="space-y-3 border-t border-slate-100 pt-6 dark:border-slate-800">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Synthetic</p>
+                    {syntheticComparison && syntheticStrangleResult ? (
+                      <div className="space-y-5">
+                        <StrangleComparisonSummary comparison={syntheticComparison} />
+                        <StrangleComparisonTable comparison={syntheticComparison} strategyPerformance={syntheticStrangleResult.performance} />
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        No completed Synthetic trades yet — run a simulation above first.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {vixRows.length > 0 && (
+              <Card
+                title="Strategy Validation — Historical vs Synthetic Markets"
+                description="Runs the same Short Strangle engine on many independently generated synthetic markets (fresh Random NIFTY + Random VIX + Black-Scholes options per run) to check whether the strategy's edge holds up beyond the one historical path."
+              >
+                <StrangleSyntheticBatchPanel historical={historicalScenarioSummary} onRun={handleRunSyntheticBatch} />
+              </Card>
             )}
           </>
         )}
