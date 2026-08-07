@@ -15,13 +15,12 @@ export function formatDate(isoDate: string): string {
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
 
-const SIMULATION_SOURCE_LABELS: Record<'historical' | 'random' | 'synthetic', string> = {
+const SIMULATION_SOURCE_LABELS: Record<'historical' | 'synthetic', string> = {
   historical: 'Historical',
-  random: 'Random NIFTY',
   synthetic: 'Synthetic',
 }
 
-/** Shared label for a Short Strangle SimulationSource, used by the Dashboard and Trade History Simulation Type column. */
-export function formatSimulationSource(source: 'historical' | 'random' | 'synthetic'): string {
+/** Shared label for a Short Strangle SimulationSource, used by the Trade History Simulation Type column. */
+export function formatSimulationSource(source: 'historical' | 'synthetic'): string {
   return SIMULATION_SOURCE_LABELS[source]
 }

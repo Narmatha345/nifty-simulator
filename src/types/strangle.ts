@@ -97,7 +97,7 @@ export interface StrangleStrategyParams {
   otmPutPct: number
 }
 
-export type SimulationSource = 'historical' | 'random' | 'synthetic'
+export type SimulationSource = 'historical' | 'synthetic'
 
 export interface EquityPoint {
   date: string
@@ -119,14 +119,4 @@ export interface BuyAndHoldComparison {
   equityCurve: EquityPoint[]
   /** Buy & Hold's own Total Trades / Win Rate / Avg Holding Days / Max Profit / Max Loss — one "trade" per Short Strangle trade window (buy at that trade's entry NIFTY price, sell at its exit price), so it's directly comparable to the strategy's own StranglePerformance. */
   buyHoldPerformance: StranglePerformance
-}
-
-/** One row of the Strategy Validation batch (strangleBatchSimulation.ts) — the same performance shape for both the Historical baseline and every generated Synthetic run, so they can be compared like-for-like. */
-export interface StrategyScenarioSummary {
-  label: string
-  totalTrades: number
-  winRate: number
-  averageHoldingDays: number
-  totalProfitLoss: number
-  strategyReturnPct: number
 }
