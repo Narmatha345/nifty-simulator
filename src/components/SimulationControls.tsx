@@ -80,7 +80,7 @@ export default function SimulationControls({
         type="button"
         onClick={onRun}
         disabled={!canRun || isRunning}
-        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
         {isRunning ? 'Simulating…' : 'Run Simulation'}
@@ -90,7 +90,7 @@ export default function SimulationControls({
         <div className="space-y-1">
           <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div
-              className="h-full rounded-full bg-indigo-500 transition-all"
+              className="h-full rounded-full bg-violet-500 transition-all"
               style={{ width: `${(progress.completed / progress.total) * 100}%` }}
             />
           </div>

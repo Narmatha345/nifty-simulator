@@ -25,7 +25,7 @@ export default function StatisticsSummary({ stats, currentLevel }: Props) {
   ]
 
   const accentClass: Record<NonNullable<StatCard['accent']>, string> = {
-    positive: 'text-blue-600 dark:text-blue-400',
+    positive: 'text-violet-600 dark:text-violet-400',
     negative: 'text-rose-600 dark:text-rose-400',
     neutral: 'text-slate-700 dark:text-slate-200',
   }

@@ -25,7 +25,7 @@ export default function ProbabilityTable({ bins, totalObservations }: Props) {
               <td className="px-4 py-1.5 text-right tabular-nums text-slate-700 dark:text-slate-200">
                 {(bin.probability * 100).toFixed(2)}%
               </td>
-              <td className="px-4 py-1.5 text-right tabular-nums font-semibold text-indigo-600 dark:text-indigo-400">
+              <td className="px-4 py-1.5 text-right tabular-nums font-semibold text-violet-600 dark:text-violet-400">
                 {(bin.probability * 100).toFixed(2)}%
               </td>
             </tr>

@@ -35,7 +35,7 @@ export default function SimulationDataTable({ paths }: Props) {
                 </th>
               ))}
               <th className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-600 dark:text-slate-300">Final NIFTY</th>
-              <th className="whitespace-nowrap px-3 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">Max Rise</th>
+              <th className="whitespace-nowrap px-3 py-2 text-right font-semibold text-violet-600 dark:text-violet-400">Max Rise</th>
               <th className="whitespace-nowrap px-3 py-2 text-right font-semibold text-rose-600 dark:text-rose-400">Max Fall</th>
             </tr>
           </thead>
@@ -53,7 +53,7 @@ export default function SimulationDataTable({ paths }: Props) {
                 <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums font-semibold text-slate-900 dark:text-slate-100">
                   {formatNumber(path.finalLevel, 2)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-blue-600 dark:text-blue-400">
+                <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-violet-600 dark:text-violet-400">
                   {formatPercent(path.maxRise)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-rose-600 dark:text-rose-400">
