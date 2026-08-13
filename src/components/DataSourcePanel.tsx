@@ -134,7 +134,7 @@ export default function DataSourcePanel({ onChange }: Props) {
             Needs Date, Open, High, Low, Close columns (header names are matched flexibly).
           </p>
           {csvFileName && csvRows && (
-            <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-teal-600 dark:text-teal-400">
               <CheckCircle2 className="h-4 w-4" /> {csvFileName} — {csvRows.length.toLocaleString('en-IN')} rows loaded
             </p>
           )}

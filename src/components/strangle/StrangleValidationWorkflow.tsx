@@ -265,13 +265,13 @@ export default function StrangleValidationWorkflow({ ohlcRows, isDark }: Props) 
             </p>
           )}
           {yahooLoaded && !vixError && (
-            <div className="rounded-xl bg-emerald-50 p-3 text-sm dark:bg-emerald-900/20">
-              <p className="font-semibold text-emerald-700 dark:text-emerald-300">Loaded Data</p>
-              <p className="text-emerald-700 dark:text-emerald-300">Ticker : {VIX_TICKER}</p>
-              <p className="text-emerald-700 dark:text-emerald-300">
+            <div className="rounded-xl bg-teal-50 p-3 text-sm dark:bg-teal-900/20">
+              <p className="font-semibold text-teal-700 dark:text-teal-300">Loaded Data</p>
+              <p className="text-teal-700 dark:text-teal-300">Ticker : {VIX_TICKER}</p>
+              <p className="text-teal-700 dark:text-teal-300">
                 Period : {formatDate(yahooLoaded.start)} → {formatDate(yahooLoaded.end)}
               </p>
-              <p className="text-emerald-700 dark:text-emerald-300">Rows Loaded : {yahooLoaded.rowCount.toLocaleString('en-IN')}</p>
+              <p className="text-teal-700 dark:text-teal-300">Rows Loaded : {yahooLoaded.rowCount.toLocaleString('en-IN')}</p>
             </div>
           )}
         </div>
@@ -292,7 +292,7 @@ export default function StrangleValidationWorkflow({ ohlcRows, isDark }: Props) 
               </button>
             </div>
             {syntheticDataset && (
-              <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-teal-600 dark:text-teal-400">
                 <CheckCircle2 className="h-4 w-4" /> Generated {syntheticDataset.niftyRows.length.toLocaleString('en-IN')} trading days of
                 simulated NIFTY, India VIX, and option prices.
               </p>
@@ -302,7 +302,7 @@ export default function StrangleValidationWorkflow({ ohlcRows, isDark }: Props) 
           <div className="space-y-2">
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">1. Historical Market</p>
             {vixRows.length > 0 && optionChainRows.length > 0 && (
-              <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-teal-600 dark:text-teal-400">
                 <CheckCircle2 className="h-4 w-4" /> Ready — real historical NIFTY, India VIX, and Option Chain data loaded.
               </p>
             )}

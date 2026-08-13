@@ -27,7 +27,7 @@ export default function StrangleSimplePerformanceSummary({ performance: p, strat
   ]
 
   const accentClass: Record<NonNullable<MetricCard['accent']>, string> = {
-    positive: 'text-emerald-600 dark:text-emerald-400',
+    positive: 'text-teal-600 dark:text-teal-400',
     negative: 'text-rose-600 dark:text-rose-400',
     neutral: 'text-slate-700 dark:text-slate-200',
   }
