@@ -111,7 +111,7 @@ export default function SimulatedPathsChart({ paths, currentLevel, isDark }: Pro
       </ResponsiveContainer>
       <p className="text-xs text-slate-500 dark:text-slate-400">
         Showing {displayedPaths.length.toLocaleString('en-IN')} of {paths.length.toLocaleString('en-IN')} simulated
-        paths (thin purple), with one representative median-outcome path highlighted (orange).
+        paths (thin green), with one representative median-outcome path highlighted (orange).
       </p>
     </div>
   )

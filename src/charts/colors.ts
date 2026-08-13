@@ -13,7 +13,7 @@ const LIGHT: ChartPalette = {
   axis: '#c3c2b7',
   textSecondary: '#52514e',
   muted: '#898781',
-  blue: '#7c3aed',
+  blue: '#16a34a',
   red: '#e34948',
   orange: '#eb6834',
 }
@@ -23,7 +23,7 @@ const DARK: ChartPalette = {
   axis: '#383835',
   textSecondary: '#c3c2b7',
   muted: '#898781',
-  blue: '#a78bfa',
+  blue: '#4ade80',
   red: '#e66767',
   orange: '#d95926',
 }

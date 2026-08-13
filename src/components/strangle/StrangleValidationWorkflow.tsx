@@ -194,7 +194,7 @@ export default function StrangleValidationWorkflow({ ohlcRows, isDark }: Props) 
   const toggleButtonClass = (active: boolean) =>
     `rounded-xl px-4 py-2 text-sm font-semibold transition ${
       active
-        ? 'bg-violet-600 text-white'
+        ? 'bg-green-600 text-white'
         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
     }`
 
@@ -244,7 +244,7 @@ export default function StrangleValidationWorkflow({ ohlcRows, isDark }: Props) 
             type="button"
             onClick={handleFetchVix}
             disabled={!vixStartDate || !vixEndDate || vixLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Cloud className="h-4 w-4" />
             Fetch Data
@@ -285,7 +285,7 @@ export default function StrangleValidationWorkflow({ ohlcRows, isDark }: Props) 
                 type="button"
                 onClick={handleGenerateMarket}
                 disabled={vixRows.length === 0}
-                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <PlayCircle className="h-4 w-4" />
                 Generate Market
@@ -326,7 +326,7 @@ export default function StrangleValidationWorkflow({ ohlcRows, isDark }: Props) 
             type="button"
             onClick={handleRunStrategy}
             disabled={!hasDataset}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlayCircle className="h-4 w-4" />
             Run Strategy

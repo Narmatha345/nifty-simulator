@@ -88,7 +88,7 @@ export default function DataSourcePanel({ onChange }: Props) {
           onClick={() => setSourceMode('bundled')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
             sourceMode === 'bundled'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-green-600 text-white'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
           }`}
         >
@@ -99,7 +99,7 @@ export default function DataSourcePanel({ onChange }: Props) {
           onClick={() => setSourceMode('csv')}
           className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
             sourceMode === 'csv'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-green-600 text-white'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
           }`}
         >
@@ -125,7 +125,7 @@ export default function DataSourcePanel({ onChange }: Props) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-violet-400 hover:text-violet-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-violet-500"
+            className="inline-flex items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-green-400 hover:text-green-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-green-500"
           >
             <Upload className="h-4 w-4" />
             {csvFileName ? 'Replace CSV file' : 'Choose CSV file'}
@@ -163,7 +163,7 @@ export default function DataSourcePanel({ onChange }: Props) {
                 onClick={() => setPreset(p.value)}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                   preset === p.value
-                    ? 'bg-fuchsia-600 text-white'
+                    ? 'bg-green-600 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
                 }`}
               >

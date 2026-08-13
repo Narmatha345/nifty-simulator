@@ -8,7 +8,7 @@ interface Props {
 
 export default function Header({ isDark, onToggleTheme }: Props) {
   return (
-    <header className="rounded-3xl bg-gradient-to-br from-fuchsia-400 via-violet-500 to-purple-600 p-6 shadow-lg shadow-fuchsia-500/20 dark:from-fuchsia-500 dark:via-violet-600 dark:to-purple-800">
+    <header className="rounded-3xl bg-gradient-to-br from-lime-400 via-green-500 to-emerald-600 p-6 shadow-lg shadow-green-500/20 dark:from-lime-500 dark:via-green-600 dark:to-emerald-800">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/25 text-white backdrop-blur-sm">

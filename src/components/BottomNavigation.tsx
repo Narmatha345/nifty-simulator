@@ -52,7 +52,7 @@ export default function BottomNavigation({ items }: Props) {
               aria-current={isActive ? 'true' : undefined}
               className={`flex flex-1 flex-col items-center gap-1 px-2 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none ${
                 isActive
-                  ? 'text-fuchsia-600 dark:text-fuchsia-400'
+                  ? 'text-green-600 dark:text-green-400'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
